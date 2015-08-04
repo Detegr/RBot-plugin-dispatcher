@@ -1,0 +1,8 @@
+[package]
+name = "rbot-plugin-dispatcher"
+version = "0.1.0"
+authors = ["Antti Keränen <detegr@gmail.com>"]
+
+[dependencies]
+unix_socket = "^0.4"
+bufstream = "*"
