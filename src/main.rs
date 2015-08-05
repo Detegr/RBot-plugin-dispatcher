@@ -92,10 +92,8 @@ fn run_plugin(plugin: &str) -> Result<String, String> {
 }
 
 fn send_plugin_reply(s: &mut UnixStream, output: &str) -> Result<(),String> {
-    match s.write(output.trim_right().as_ref())
+    s.write(output.trim_right().as_ref())
         .and_then(|_| s.write(b"\r\n"))
-        .and_then(|_| s.flush()) {
-            Err(e) => Err(e.to_string()),
-            _ => Ok(()),
-        }
+        .and_then(|_| s.flush())
+        .map_err(|e| e.to_string())
 }
