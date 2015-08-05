@@ -6,6 +6,9 @@ use std::process::Command;
 use std::thread;
 use std::sync::Arc;
 
+mod error;
+use error::Error;
+
 const SOCKETS: [&'static str; 1] = ["../RBot/sockets/irc.quakenet.org"];
 const TYPE: usize = 0;
 const RETRIES: usize = 10;
@@ -80,20 +83,19 @@ fn retry_connection(socket: &str) -> Option<BufReader<UnixStream>> {
     None
 }
 
-fn run_plugin(plugin: &str) -> Result<String, String> {
+fn run_plugin(plugin: &str) -> Result<String, Error> {
     println!("Running plugin {}", plugin);
     let output = match Command::new(plugin).output() {
         Ok(output) => output.stdout,
         Err(e) => {
-            return Err(e.to_string());
+            return Err(e.into())
         }
     };
-    String::from_utf8(output).map_err(|e| e.to_string())
+    Ok(try!(String::from_utf8(output)))
 }
 
-fn send_plugin_reply(s: &mut UnixStream, output: &str) -> Result<(),String> {
-    s.write(output.trim_right().as_ref())
+fn send_plugin_reply(s: &mut UnixStream, output: &str) -> Result<(), Error> {
+    Ok(try!(s.write(output.trim_right().as_ref())
         .and_then(|_| s.write(b"\r\n"))
-        .and_then(|_| s.flush())
-        .map_err(|e| e.to_string())
+        .and_then(|_| s.flush())))
 }
