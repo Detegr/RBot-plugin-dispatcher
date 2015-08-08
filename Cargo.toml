@@ -4,5 +4,5 @@ version = "0.1.0"
 authors = ["Antti Keränen <detegr@gmail.com>"]
 
 [dependencies]
-unix_socket = "^0.4"
-bufstream = "*"
+unix_socket = "0.4"
+toml = "0.1"

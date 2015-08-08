@@ -2,6 +2,7 @@
 pub enum Error {
     Utf,
     IO,
+    Config(Option<String>),
 }
 impl From<::std::io::Error> for Error {
     fn from(_: ::std::io::Error) -> Error {
@@ -15,14 +16,24 @@ impl From<::std::string::FromUtf8Error> for Error {
 }
 impl ::std::fmt::Display for Error {
     fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        write!(fmt, "{}", (self as &::std::error::Error).description())
+        try!(write!(fmt, "{}", (self as &::std::error::Error).description()));
+        match *self {
+            Error::Config(ref s) => {
+                if let &Some(ref s) = s {
+                    try!(write!(fmt, ":\n{}", s))
+                }
+                Ok(())
+            }
+            _ => Ok(())
+        }
     }
 }
 impl ::std::error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::Utf => "Plugin result must be valid UTF-8",
-            Error::IO => "Could not send plugin result to the bot"
+            Error::IO => "Could not send plugin result to the bot",
+            Error::Config(_) => "Error while reading the config file",
         }
     }
 }

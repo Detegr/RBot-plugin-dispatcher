@@ -1,10 +1,15 @@
 extern crate unix_socket;
+extern crate toml;
+
 use std::collections::HashMap;
 use unix_socket::UnixStream;
 use std::io::{BufRead,BufReader,Write};
 use std::process::Command;
 use std::thread;
 use std::sync::Arc;
+
+mod config;
+use config::Config;
 
 mod error;
 use error::Error;
@@ -14,6 +19,14 @@ const TYPE: usize = 0;
 const RETRIES: usize = 10;
 
 fn main() {
+    let config = match Config::new() {
+        Ok(conf) => conf,
+        Err(e) => {
+            println!("{}", e);
+            ::std::process::exit(1)
+        }
+    };
+    println!("{:?}", config);
     // TODO: Read from a config file
     let mut plugins = HashMap::new();
     plugins.insert("376", vec!["./autojoin.sh"]); // End of motd

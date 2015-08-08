@@ -1,0 +1,7 @@
+sockets = ["../RBot/sockets"]
+
+[plugins.autojoin]
+executable = "./autojoin.sh"
+
+[plugins.test]
+executable = "./test.sh"
