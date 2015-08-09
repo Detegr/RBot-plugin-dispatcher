@@ -1,23 +1,59 @@
+extern crate rbot_parser as parser;
+extern crate regex;
+
 use toml;
 use error::Error;
 use std::fs::OpenOptions;
 use std::io::Read;
 use std::collections::BTreeMap;
+use self::regex::Regex;
 
 static CONFIG_FILE: &'static str = "plugins.toml";
 
 #[derive(Debug)]
-pub struct Plugin {
-    executable: String
+pub struct Plugin<'a> {
+    command: Vec<parser::Command<'a>>,
+    executable: String,
+    trigger: Option<Regex>,
 }
 #[derive(Debug)]
-pub struct Config {
-    plugins: Vec<Plugin>,
+pub struct Config<'a> {
+    plugins: Vec<Plugin<'a>>,
     sockets: Vec<String>,
 }
-//fn get_toml_string_value(val: toml::Value
-impl Config {
-    pub fn new() -> Result<Config, Error> {
+fn plugin_from_map<'a>(map: &BTreeMap<String, toml::Value>) -> Option<Plugin<'a>> {
+    let executable = match map.get("executable").and_then(toml::Value::as_str) {
+        Some(exe) => exe,
+        None => return None
+    }.to_owned();
+    let command = map.get("command")
+                     .and_then(toml::Value::as_slice)
+                     .and_then(|commands| Some(commands.into_iter().filter_map(|c| {
+                         match *c {
+                             toml::Value::Integer(i) => {
+                                 Some(parser::Command::Numeric(i as u16))
+                             },
+                             toml::Value::String(ref s) => {
+                                 Some(parser::Command::Named(s.clone().into()))
+                             },
+                             _ => None
+                         }
+                     })
+                     .collect()));
+    let trigger = map.get("trigger")
+                     .and_then(toml::Value::as_str)
+                     .and_then(|t| Regex::new(t).ok());
+    Some(Plugin {
+        command: match command {
+            Some(command) => command,
+            None => vec![]
+        },
+        executable: executable,
+        trigger: trigger,
+    })
+}
+impl<'a> Config<'a> {
+    pub fn new() -> Result<Config<'a>, Error> {
         let mut config_file = try!(OpenOptions::new()
                                        .create(true)
                                        .append(true)
@@ -44,11 +80,11 @@ impl Config {
                              plugins.values()
                                 .filter_map(|plugin| {
                                    plugin.as_table()
-                                      .and_then(|t| t.get("executable"))
-                                      .and_then(toml::Value::as_str)
+                                      .and_then(plugin_from_map)
+                                      /*
                                       .and_then(|e| Some(Plugin {
                                          executable: e.to_owned()
-                                      }))
+                                      }))*/
                                 })
                          })
                          .collect();

@@ -6,3 +6,7 @@ authors = ["Antti Keränen <detegr@gmail.com>"]
 [dependencies]
 unix_socket = "0.4"
 toml = "0.1"
+regex = "0.1"
+
+[dependencies.rbot_parser]
+git = "https://github.com/Detegr/RBot-parser.git"
