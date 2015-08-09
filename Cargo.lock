@@ -1,5 +1,5 @@
 [root]
-name = "rbot-plugin-dispatcher"
+name = "rbot_plugin_dispatcher"
 version = "0.1.0"
 dependencies = [
  "toml 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
