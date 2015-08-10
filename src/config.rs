@@ -28,25 +28,18 @@ fn plugin_from_map<'a>(map: &BTreeMap<String, toml::Value>) -> Option<Plugin<'a>
     }.to_owned();
     let command = map.get("command")
                      .and_then(toml::Value::as_slice)
-                     .and_then(|commands| Some(commands.into_iter().filter_map(|c| {
-                         match *c {
-                             toml::Value::Integer(i) => {
-                                 Some(parser::Command::Numeric(i as u16))
-                             },
-                             toml::Value::String(ref s) => {
-                                 Some(parser::Command::Named(s.clone().into()))
-                             },
-                             _ => None
-                         }
-                     })
-                     .collect()));
+                     .and_then(|commands| {
+                         Some(commands.iter()
+                                      .filter_map(command_from_toml_value)
+                                      .collect())
+                     });
     let trigger = map.get("trigger")
                      .and_then(toml::Value::as_str)
                      .and_then(|t| Regex::new(t).ok());
     Some(Plugin {
         command: match command {
             Some(command) => command,
-            None => vec![]
+            None => vec![parser::Command::Named("PRIVMSG".into())]
         },
         executable: executable,
         trigger: trigger,
@@ -92,5 +85,16 @@ impl<'a> Config<'a> {
             plugins: plugins,
             sockets: sockets,
         })
+    }
+}
+fn command_from_toml_value<'a>(value: &toml::Value) -> Option<parser::Command<'a>> {
+    match *value {
+        toml::Value::Integer(i) => {
+            Some(parser::Command::Numeric(i as u16))
+        },
+        toml::Value::String(ref s) => {
+            Some(parser::Command::Named(s.clone().into()))
+        },
+        _ => None
     }
 }
