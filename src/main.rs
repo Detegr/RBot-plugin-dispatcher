@@ -67,6 +67,7 @@ fn main() {
                     for plugin in plugin_list {
                         match run_plugin(plugin, &line)
                                   .and_then(|out| send_plugin_reply(conn.get_mut(), &out)) {
+                            Err(Error::Plugin) => {},
                             Err(e) => println!("{}", e),
                             _ => {}
                         }

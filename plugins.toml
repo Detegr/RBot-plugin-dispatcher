@@ -1,4 +1,4 @@
-sockets = ["../RBot/sockets"]
+sockets = ["../RBot/sockets/irc.quakenet.org"]
 
 [plugins.autojoin]
 command = [376, 422]
@@ -7,4 +7,4 @@ executable = "./autojoin.sh"
 [plugins.test]
 command = ["PRIVMSG"]
 executable = "./test.sh"
-trigger = "^!test"
+trigger = "!test"
