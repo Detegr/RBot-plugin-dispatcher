@@ -2,6 +2,7 @@
 pub enum Error {
     Utf,
     IO,
+    Plugin,
     Config(Option<String>),
 }
 impl From<::std::io::Error> for Error {
@@ -34,6 +35,7 @@ impl ::std::error::Error for Error {
             Error::Utf => "Plugin result must be valid UTF-8",
             Error::IO => "Could not send plugin result to the bot",
             Error::Config(_) => "Error while reading the config file",
+            Error::Plugin => "No triggers match for this plugin",
         }
     }
 }

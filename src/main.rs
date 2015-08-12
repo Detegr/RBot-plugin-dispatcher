@@ -1,20 +1,20 @@
+extern crate rbot_parser as parser;
 extern crate unix_socket;
 extern crate toml;
 
-use std::collections::HashMap;
 use unix_socket::UnixStream;
 use std::io::{BufRead,BufReader,Write};
 use std::process::Command;
 use std::thread;
 use std::sync::Arc;
+use std::str::FromStr;
 
 mod config;
-use config::Config;
+use config::{Config, Plugin};
 
 mod error;
 use error::Error;
 
-const SOCKETS: [&'static str; 1] = ["../RBot/sockets/irc.quakenet.org"];
 const TYPE: usize = 0;
 const RETRIES: usize = 10;
 
@@ -27,23 +27,18 @@ fn main() {
         }
     };
     println!("{:?}", config);
-    // TODO: Read from a config file
-    let mut plugins = HashMap::new();
-    plugins.insert("376", vec!["./autojoin.sh"]); // End of motd
-    plugins.insert("422", vec!["./autojoin.sh"]); // Motd file missing
-    plugins.insert("PRIVMSG", vec!["./test.sh"]);
-    let plugins = Arc::new(plugins);
 
+    let plugins = Arc::new(config.plugins);
     let mut threads = vec![];
 
-    for socket in SOCKETS.iter().cloned() {
+    for socket in config.sockets {
         let plgs = plugins.clone();
         threads.push(thread::spawn(move || {
-            let mut conn = match UnixStream::connect(socket) {
+            let mut conn = match UnixStream::connect(&socket) {
                 Ok(conn) => BufReader::new(conn),
                 Err(e) => {
                     println!("{}", e.to_string());
-                    match retry_connection(socket) {
+                    match retry_connection(&socket) {
                         Some(conn) => conn,
                         None => ::std::process::exit(1)
                     }
@@ -59,14 +54,21 @@ fn main() {
                     if splitted.len() == 0 {
                         continue;
                     }
-                    let linetype = splitted[TYPE];
-                    if let Some(plugin_list) = plgs.get(linetype) {
-                        for plugin in plugin_list {
-                            match run_plugin(plugin)
-                                      .and_then(|out| send_plugin_reply(conn.get_mut(), &out)) {
-                                Err(e) => println!("{}", e),
-                                _ => {}
-                            }
+                    let cmd = match FromStr::from_str(splitted[TYPE]) {
+                        Ok(cmd) => parser::Command::Numeric(cmd),
+                        Err(_) => parser::Command::Named(splitted[TYPE].into())
+                    };
+                    let plugin_list = plgs.iter()
+                                          .filter(|p| p.command
+                                                       .iter()
+                                                       .find(|&c| *c == cmd)
+                                                       .is_some())
+                                          .collect::<Vec<&Plugin>>();
+                    for plugin in plugin_list {
+                        match run_plugin(plugin, &line)
+                                  .and_then(|out| send_plugin_reply(conn.get_mut(), &out)) {
+                            Err(e) => println!("{}", e),
+                            _ => {}
                         }
                     }
                 }
@@ -96,15 +98,18 @@ fn retry_connection(socket: &str) -> Option<BufReader<UnixStream>> {
     None
 }
 
-fn run_plugin(plugin: &str) -> Result<String, Error> {
-    println!("Running plugin {}", plugin);
-    let output = match Command::new(plugin).output() {
-        Ok(output) => output.stdout,
-        Err(e) => {
-            return Err(e.into())
-        }
-    };
-    Ok(try!(String::from_utf8(output)))
+fn run_plugin(plugin: &Plugin, line: &String) -> Result<String, Error> {
+    if plugin.trigger.is_none() || plugin.trigger.as_ref().unwrap().is_match(line) {
+        println!("Running plugin {}", plugin.executable);
+        let output = match Command::new(&plugin.executable).output() {
+            Ok(output) => output.stdout,
+            Err(e) => {
+                return Err(e.into())
+            }
+        };
+        return Ok(try!(String::from_utf8(output)));
+    }
+    Err(Error::Plugin)
 }
 
 fn send_plugin_reply(s: &mut UnixStream, output: &str) -> Result<(), Error> {

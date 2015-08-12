@@ -12,14 +12,14 @@ static CONFIG_FILE: &'static str = "plugins.toml";
 
 #[derive(Debug)]
 pub struct Plugin<'a> {
-    command: Vec<parser::Command<'a>>,
-    executable: String,
-    trigger: Option<Regex>,
+    pub command: Vec<parser::Command<'a>>,
+    pub executable: String,
+    pub trigger: Option<Regex>,
 }
 #[derive(Debug)]
 pub struct Config<'a> {
-    plugins: Vec<Plugin<'a>>,
-    sockets: Vec<String>,
+    pub plugins: Vec<Plugin<'a>>,
+    pub sockets: Vec<String>,
 }
 fn plugin_from_map<'a>(map: &BTreeMap<String, toml::Value>) -> Option<Plugin<'a>> {
     let executable = match map.get("executable").and_then(toml::Value::as_str) {
