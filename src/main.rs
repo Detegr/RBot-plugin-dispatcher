@@ -7,7 +7,6 @@ use std::io::{BufRead,BufReader,Write};
 use std::process::Command;
 use std::thread;
 use std::sync::Arc;
-use std::str::FromStr;
 
 mod config;
 use config::{Config, Plugin};
@@ -15,7 +14,6 @@ use config::{Config, Plugin};
 mod error;
 use error::Error;
 
-const TYPE: usize = 0;
 const RETRIES: usize = 10;
 
 fn main() {
@@ -50,28 +48,27 @@ fn main() {
                     if bytes == 0 {
                         break;
                     }
-                    let splitted: Vec<&str> = line.split_whitespace().collect();
-                    if splitted.len() == 0 {
-                        continue;
-                    }
-                    let cmd = match FromStr::from_str(splitted[TYPE]) {
-                        Ok(cmd) => parser::Command::Numeric(cmd),
-                        Err(_) => parser::Command::Named(splitted[TYPE].into())
-                    };
-                    let plugin_list = plgs.iter()
-                                          .filter(|p| p.command
-                                                       .iter()
-                                                       .find(|&c| *c == cmd)
-                                                       .is_some())
-                                          .collect::<Vec<&Plugin>>();
-                    for plugin in plugin_list {
-                        match run_plugin(plugin, &line)
-                                  .and_then(|out| send_plugin_reply(conn.get_mut(), &out)) {
-                            Err(Error::Plugin) => {},
-                            Err(e) => println!("{}", e),
-                            _ => {}
+                    println!("{}", line);
+                    match parser::parse_message(&line[..]) {
+                        Ok(parsed) => {
+                            let plugin_list = plgs.iter()
+                                                  .filter(|p| p.command
+                                                               .iter()
+                                                               .find(|&c| *c == parsed.command)
+                                                               .is_some())
+                                                  .collect::<Vec<&Plugin>>();
+                            println!("{:?}", plugin_list);
+                            for plugin in plugin_list {
+                                match run_plugin(plugin, &line, &parsed)
+                                          .and_then(|out| send_plugin_reply(conn.get_mut(), &out)) {
+                                    Err(Error::Plugin) => {},
+                                    Err(e) => println!("{}", e),
+                                    _ => {}
+                                }
+                            }
                         }
-                    }
+                        Err(e) => println!("{}", e)
+                    };
                 }
                 else {
                     println!("Could not read the socket");
@@ -99,10 +96,11 @@ fn retry_connection(socket: &str) -> Option<BufReader<UnixStream>> {
     None
 }
 
-fn run_plugin(plugin: &Plugin, line: &String) -> Result<String, Error> {
+fn run_plugin(plugin: &Plugin, line: &String, parsed: &parser::Message) -> Result<String, Error> {
     if plugin.trigger.is_none() || plugin.trigger.as_ref().unwrap().is_match(line) {
         println!("Running plugin {}", plugin.executable);
-        let output = match Command::new(&plugin.executable).output() {
+        let params: Vec<&str> = parsed.params.iter().cloned().skip(1).collect();
+        let output = match Command::new(&plugin.executable).arg(params.join(" ")).output() {
             Ok(output) => output.stdout,
             Err(e) => {
                 return Err(e.into())
