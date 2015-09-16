@@ -48,7 +48,6 @@ fn main() {
                     if bytes == 0 {
                         break;
                     }
-                    println!("{}", line);
                     match parser::parse_message(&line[..]) {
                         Ok(parsed) => {
                             let plugin_list = plgs.iter()
@@ -57,7 +56,6 @@ fn main() {
                                                                .find(|&c| *c == parsed.command)
                                                                .is_some())
                                                   .collect::<Vec<&Plugin>>();
-                            println!("{:?}", plugin_list);
                             for plugin in plugin_list {
                                 match run_plugin(plugin, &line, &parsed)
                                           .and_then(|out| send_plugin_reply(conn.get_mut(), &out)) {
